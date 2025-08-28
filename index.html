@@ -1,0 +1,484 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>Service Location • DER Equipment Overview (Preview‑only, no external libs)</title>
+  <style>
+    /* ---- Fiori-ish tokens (no external CSS) ---- */
+    :root{
+      --bg: #f7f7f7;
+      --tile-bg: #ffffff;
+      --text: #32363a;
+      --muted: #6a6d70;
+      --border: #e0e0e0;
+      --shadow: 0 0 0.125rem rgba(0,0,0,0.08);
+      --primary: #0a6ed1;
+      --primary-hover: #0854a0;
+      --info: #0a6ed1;
+      --success: #107e3e;
+      --warning: #e9730c;
+      --error: #bb0000;
+      --info-bg: #e5f3ff;
+      --success-bg: #edf7ed;
+      --warning-bg: #fff4e5;
+      --error-bg: #fdeaea;
+      --focus: #0a6ed1;
+    }
+    * { box-sizing: border-box; }
+    html, body { height:100%; }
+    body{ margin:0; background:var(--bg); color:var(--text);
+          font-family: system-ui, -apple-system, Segoe UI, Roboto, Arial, "Helvetica Neue", sans-serif; }
+
+    /* Layout */
+    .page{ padding:1rem; max-width:1200px; margin:0 auto; display:grid; gap:1rem; grid-template-columns: 1fr; }
+    @media(min-width:1100px){ .page{ grid-template-columns: 1.2fr 1fr; } }
+
+    .card{ background:var(--tile-bg); border:1px solid var(--border); border-radius:8px; box-shadow:var(--shadow); padding:1rem; }
+    .toolbar{ display:flex; gap:0.5rem; align-items:center; flex-wrap:wrap; }
+    .toolbar .spacer{ flex:1; }
+    .title{ font-weight:700; font-size:1.1rem; }
+    .subtle{ color:var(--muted); font-size:0.9rem; }
+
+    .btn{ appearance:none; border:none; border-radius:6px; padding:0.45rem 0.75rem; font-weight:600; cursor:pointer; }
+    .btn:focus{ outline:2px solid var(--focus); outline-offset:2px; }
+    .btn-primary{ background:var(--primary); color:#fff; }
+    .btn-primary:hover{ background:var(--primary-hover); }
+    .btn-ghost{ background:transparent; color:var(--info); border:1px solid #cfe5ff; }
+
+    .select, .input{ padding:0.4rem 0.5rem; border:1px solid #d1d5db; border-radius:6px; background:#fff; }
+
+    .msg{ border-left:4px solid var(--info); background:#f5f7f9; padding:0.6rem 0.75rem; border-radius:6px; display:flex; align-items:center; justify-content:space-between; gap:0.5rem; }
+
+    .kpis{ display:grid; grid-template-columns: repeat(2, 1fr); gap:0.75rem; }
+    @media(min-width:720px){ .kpis{ grid-template-columns: repeat(4, 1fr); } }
+    .kpi{ background:#f9fafb; border:1px solid #ececec; border-radius:8px; padding:0.75rem; }
+    .kpi .num{ font-size:1.25rem; font-weight:800; }
+    .kpi .lbl{ font-size:0.8rem; color:var(--muted); }
+
+    table{ width:100%; border-collapse:collapse; }
+    thead th{ text-align:left; font-size:0.8rem; color:var(--muted); border-bottom:1px solid #e5e7eb; padding:0.5rem; }
+    tbody td{ padding:0.6rem 0.5rem; border-bottom:1px solid #f0f0f0; vertical-align:top; font-size:0.95rem; }
+    tbody tr:hover{ background:#fafbfd; }
+    .right{ text-align:right; }
+
+    .chip{ display:inline-block; border-radius:6px; padding:0.1rem 0.45rem; font-size:0.75rem; font-weight:700; }
+    .chip.success{ background:var(--success-bg); color:var(--success); }
+    .chip.warn{ background:var(--warning-bg); color:var(--warning); }
+    .chip.info{ background:var(--info-bg); color:var(--info); }
+    .chip.error{ background:var(--error-bg); color:var(--error); }
+
+    /* Key/Value list */
+    .kv{ display:grid; grid-template-columns: 160px 1fr; gap:0.35rem 0.75rem; align-items:center; }
+    .kv .k{ color:var(--muted); font-size:0.85rem; }
+    .kv .v{ font-weight:600; }
+
+    /* Dialogs (native <dialog>) */
+    dialog{ border:none; border-radius:8px; padding:0; box-shadow:0 10px 30px rgba(0,0,0,.2); }
+    .dlg-hd{ padding:0.9rem 1rem; border-bottom:1px solid #eee; display:flex; justify-content:space-between; align-items:center; }
+    .dlg-ct{ padding:1rem; }
+    .grid{ display:grid; grid-template-columns:1fr 1fr; gap:0.75rem; }
+    @media(max-width:720px){ .grid{ grid-template-columns:1fr; } }
+
+    a{ color:var(--primary); text-decoration:none; }
+    a:hover{ text-decoration:underline; }
+    ul{ margin:0.25rem 0 0; padding-left:1.1rem; }
+  </style>
+</head>
+<body>
+  <div class="page">
+
+    <!-- LEFT: Equipment + Filters + Table -->
+    <section class="card">
+      <div class="toolbar">
+        <div class="title">DER Equipment at Service Location</div>
+        <div class="spacer"></div>
+        <button class="btn btn-primary" id="exportCsvBtn">Export CSV</button>
+        <button class="btn btn-ghost" id="printBtn">Print</button>
+      </div>
+      <div class="subtle" id="locLine" style="margin-top:0.25rem;">Location: <span id="address">—</span> • ID: <span id="locationId">—</span> • Account: <span id="accountId">—</span></div>
+
+      <div class="msg" style="margin-top:0.75rem;">
+        <div id="ptoLine">PTO (Permission to Operate): —</div>
+        <button class="btn btn-ghost" id="viewDocsBtn">Documents</button>
+      </div>
+
+      <div class="kpis" style="margin-top:0.75rem;">
+        <div class="kpi"><div class="num" id="kpiPvCount">0</div><div class="lbl">Solar PV Units</div></div>
+        <div class="kpi"><div class="num" id="kpiPvKw">0 kW</div><div class="lbl">PV Capacity (AC)</div></div>
+        <div class="kpi"><div class="num" id="kpiBattKwh">0 kWh</div><div class="lbl">Battery Storage</div></div>
+        <div class="kpi"><div class="num" id="kpiEvseKw">0 kW</div><div class="lbl">EVSE Total Rating</div></div>
+      </div>
+
+      <!-- Filters -->
+      <div class="toolbar" style="margin-top:0.75rem;">
+        <label class="subtle" for="typeFilter">Type</label>
+        <select id="typeFilter" class="select">
+          <option value="all">All</option>
+          <option>Solar PV</option>
+          <option>Battery Storage</option>
+          <option>EV</option>
+          <option>EV Charger</option>
+          <option>Other</option>
+        </select>
+        <label class="subtle" for="statusFilter">Status</label>
+        <select id="statusFilter" class="select">
+          <option value="all">All</option>
+          <option>Active</option>
+          <option>Pending</option>
+          <option>Maintenance</option>
+          <option>Disconnected</option>
+        </select>
+        <input id="searchInput" class="input" type="text" placeholder="Search make, model, serial, interconnection…" style="min-width:300px;" />
+        <div class="spacer"></div>
+        <button class="btn btn-ghost" id="resetFilters">Reset</button>
+      </div>
+
+      <div style="overflow:auto; margin-top:0.75rem;">
+        <table id="equipmentTable" aria-label="Installed DER equipment">
+          <thead>
+            <tr>
+              <th>Type</th>
+              <th>Make / Model</th>
+              <th>Capacity</th>
+              <th>Status</th>
+              <th>Installed</th>
+              <th>Serial / VIN</th>
+              <th>Interconnection</th>
+              <th class="right">Actions</th>
+            </tr>
+          </thead>
+          <tbody></tbody>
+        </table>
+      </div>
+
+      <div class="subtle" style="margin-top:0.5rem;">Tip: pass <code>?locationId=LOC-1001&address=123%20Main%20St&accountId=USA0017141&rate=RES-1%20(Flat)</code> in the URL to populate the header.</div>
+    </section>
+
+    <!-- RIGHT: Service & Rates + Notes + Docs -->
+    <section class="card">
+      <h3 style="margin:0 0 0.5rem 0;">Service Location & Rates</h3>
+      <div class="kv" id="serviceKV">
+        <div class="k">Connection Object</div><div class="v" id="coId">—</div>
+        <div class="k">Premise</div><div class="v" id="premiseId">—</div>
+        <div class="k">Installation(s)</div><div class="v" id="instList">—</div>
+        <div class="k">Service Class</div><div class="v" id="svcClass">Residential</div>
+        <div class="k">Meter Type</div><div class="v" id="meterType">AMI Electric</div>
+        <div class="k">Annual Usage</div><div class="v" id="annualKwh">—</div>
+        <div class="k">Peak Demand</div><div class="v" id="demandKw">—</div>
+        <div class="k">Current Rate</div><div class="v"><span class="chip info" id="currentRate">—</span></div>
+      </div>
+
+      <h3 style="margin:0.75rem 0 0.5rem 0;">Rate Signals (demo)</h3>
+      <ul id="rateSignals" class="subtle"></ul>
+
+      <h3 style="margin:0.75rem 0 0.5rem 0;">Suggested Options</h3>
+      <div id="rateChips" style="display:flex; gap:0.35rem; flex-wrap:wrap;"></div>
+
+      <h3 style="margin:0.75rem 0 0.5rem 0;">Site Notes</h3>
+      <div class="grid">
+        <div>
+          <strong>Safety</strong>
+          <ul class="subtle">
+            <li>Rapid shutdown available: <b>Yes</b></li>
+            <li>Solar AC disconnect: <b>West exterior wall</b></li>
+            <li>Main service: <b>200 A</b></li>
+            <li>Backfeed: <b>Solar breaker at position 18</b></li>
+          </ul>
+        </div>
+        <div>
+          <strong>Recent Events</strong>
+          <ul class="subtle" id="eventList">
+            <li>2024‑06‑10: Utility Inspection Completed</li>
+            <li>2024‑06‑12: PTO Granted</li>
+            <li>2025‑02‑15: Battery firmware update</li>
+          </ul>
+        </div>
+      </div>
+
+      <h3 style="margin:0.75rem 0 0.5rem 0;">Documents</h3>
+      <div class="toolbar">
+        <a class="btn btn-ghost" id="icpLink" href="#">Interconnection Agreement</a>
+        <a class="btn btn-ghost" id="singleLineLink" href="#">Single‑Line Diagram</a>
+        <a class="btn btn-ghost" id="siteMapLink" href="#">Site Map / Photos</a>
+      </div>
+    </section>
+
+    <!-- FULL WIDTH ROW -->
+    <section class="card" style="grid-column: 1 / -1;">
+      <h3 style="margin:0 0 0.5rem 0;">Notes</h3>
+      <p class="subtle">Demo logic below surfaces tariff eligibility based on installed equipment. This is illustrative and not a substitute for your actual rate rules engine or BRF+/SAP subscription logic.</p>
+    </section>
+
+  </div>
+
+  <!-- Details Dialog -->
+  <dialog id="detailsDialog">
+    <div class="dlg-hd">
+      <strong id="modalTitle">Equipment Details</strong>
+      <button class="btn btn-ghost" onclick="document.getElementById('detailsDialog').close()">Close</button>
+    </div>
+    <div class="dlg-ct" id="modalContent"></div>
+  </dialog>
+
+  <script>
+    // --- Sample data (replace with API call) ---
+    const equipmentData = [
+      { id:'PV-001', type:'Solar PV', make:'Q CELLS', model:'Q.PEAK DUO BLK-G10+', capacityKW:7.2, status:'Active', installDate:'2024-06-15', serial:'QCBG10P-001', interconnectionId:'IA-48217', owner:'Customer', inverterMake:'Enphase', inverterModel:'IQ8', rapidShutdown:true, roofPlane:'South 25°', documents:{ interconnection:'#', singleLine:'#', siteMap:'#' } },
+      { id:'BAT-001', type:'Battery Storage', make:'Tesla', model:'Powerwall 2', capacityKWh:13.5, status:'Active', installDate:'2024-06-16', serial:'PW2-00918', interconnectionId:'IA-48217', owner:'Customer', backupGateway:'TG-12345', documents:{ interconnection:'#', singleLine:'#', siteMap:'#' } },
+      { id:'EV-001', type:'EV', make:'Ford', model:'F‑150 Lightning', batteryKWh:131, status:'Active', installDate:'2024-12-01', vin:'1FTVW1EV1PWA00001', interconnectionId:'-', owner:'Customer', documents:{ interconnection:'#', singleLine:'#', siteMap:'#' } },
+      { id:'EVSE-001', type:'EV Charger', make:'ChargePoint', model:'Home Flex', chargerKW:11.5, status:'Active', installDate:'2024-12-02', serial:'CPH25-001', interconnectionId:'-', owner:'Customer', circuitBreakerA:60, documents:{ interconnection:'#', singleLine:'#', siteMap:'#' } },
+      { id:'OTH-001', type:'Other', make:'Generac', model:'Guardian 22kW', generatorKW:22, status:'Maintenance', installDate:'2023-10-07', serial:'GEN-22000', interconnectionId:'IA-30111', owner:'Customer', transferSwitch:'200A ATS', documents:{ interconnection:'#', singleLine:'#', siteMap:'#' } }
+    ];
+
+    // --- Service / identifier data ---
+    const serviceData = {
+      connectionObject: 'CO-680234',
+      premiseId: 'PR-221045',
+      installations: ['USA0017141','USA0017142'],
+      serviceClass: 'Residential',
+      meterType: 'AMI Electric',
+      annualKwh: 10250,
+      demandKw: 7.4,
+      currentRate: 'RES-1 (Flat)'
+    };
+
+    // URL params can override defaults
+    const url = new URL(window.location.href);
+    const qp = (k) => url.searchParams.get(k);
+    const addressParam = qp('address');
+    const locationIdParam = qp('locationId');
+    const accountIdParam = qp('accountId');
+
+    if (addressParam) document.getElementById('address').textContent = addressParam;
+    if (locationIdParam) document.getElementById('locationId').textContent = locationIdParam;
+    if (accountIdParam) document.getElementById('accountId').textContent = accountIdParam;
+
+    // Allow overrides for service identifiers
+    serviceData.connectionObject = qp('co') || serviceData.connectionObject;
+    serviceData.premiseId = qp('premise') || serviceData.premiseId;
+    serviceData.installations = (qp('inst') ? qp('inst').split(',') : serviceData.installations);
+    serviceData.currentRate = qp('rate') || serviceData.currentRate;
+
+    // Render service KV
+    document.getElementById('coId').textContent = serviceData.connectionObject;
+    document.getElementById('premiseId').textContent = serviceData.premiseId;
+    document.getElementById('instList').textContent = serviceData.installations.join(', ');
+    document.getElementById('svcClass').textContent = serviceData.serviceClass;
+    document.getElementById('meterType').textContent = serviceData.meterType;
+    document.getElementById('annualKwh').textContent = serviceData.annualKwh.toLocaleString() + ' kWh';
+    document.getElementById('demandKw').textContent = serviceData.demandKw + ' kW';
+    document.getElementById('currentRate').textContent = serviceData.currentRate;
+
+    // Summary KPIs + docs
+    function refreshSummary(){
+      const pv = equipmentData.filter(x => x.type==='Solar PV');
+      const batt = equipmentData.filter(x => x.type==='Battery Storage');
+      const evse = equipmentData.filter(x => x.type==='EV Charger');
+      const sum = (arr, key) => arr.reduce((a,b) => a + (Number(b[key])||0), 0);
+      document.getElementById('kpiPvCount').textContent = pv.length;
+      document.getElementById('kpiPvKw').textContent = sum(pv,'capacityKW').toFixed(1) + ' kW';
+      document.getElementById('kpiBattKwh').textContent = sum(batt,'capacityKWh').toFixed(1) + ' kWh';
+      document.getElementById('kpiEvseKw').textContent = sum(evse,'chargerKW').toFixed(1) + ' kW';
+      document.getElementById('ptoLine').textContent = 'PTO (Permission to Operate): 2024-06-12';
+      const firstDocs = (pv[0] && pv[0].documents) || (batt[0] && batt[0].documents) || {};
+      document.getElementById('icpLink').href = firstDocs.interconnection || '#';
+      document.getElementById('singleLineLink').href = firstDocs.singleLine || '#';
+      document.getElementById('siteMapLink').href = firstDocs.siteMap || '#';
+    }
+
+    // Helpers
+    function fmtCapacity(r){
+      switch(r.type){
+        case 'Solar PV': return (r.capacityKW ?? 0) + ' kW';
+        case 'Battery Storage': return (r.capacityKWh ?? 0) + ' kWh';
+        case 'EV Charger': return (r.chargerKW ?? 0) + ' kW';
+        case 'EV': return r.batteryKWh ? r.batteryKWh + ' kWh (vehicle)' : '—';
+        default: return r.generatorKW ? r.generatorKW + ' kW' : '—';
+      }
+    }
+    function statusChip(s){
+      const cls = s==='Active' ? 'success' : s==='Maintenance' ? 'warn' : s==='Disconnected' ? 'error' : 'info';
+      return `<span class="chip ${cls}">${s}</span>`;
+    }
+
+    // Rate signals / suggestions (illustrative rules)
+    function computeRateLogic(eq, svc){
+      const signals = [];
+      const options = new Map(); // key->label
+
+      const pvKw = eq.filter(e=>e.type==='Solar PV').reduce((a,b)=>a+(b.capacityKW||0),0);
+      const battKwh = eq.filter(e=>e.type==='Battery Storage').reduce((a,b)=>a+(b.capacityKWh||0),0);
+      const evseKw = eq.filter(e=>e.type==='EV Charger').reduce((a,b)=>a+(b.chargerKW||0),0);
+      const hasEV = eq.some(e=>e.type==='EV');
+      const hasGen = eq.some(e=>e.type==='Other' && e.generatorKW);
+
+      if (pvKw > 0){
+        signals.push(`Solar PV detected (${pvKw.toFixed(1)} kW) — eligible for Net Metering / DER rider.`);
+        options.set('RES-NEM','Net Metering Rider (RES‑NEM)');
+        if (pvKw >= 10) signals.push('PV size ≥ 10 kW — may fall under Large DG rules.');
+      }
+      if (battKwh >= 10){
+        signals.push(`Battery storage present (${battKwh.toFixed(1)} kWh) — eligible for battery optimization or TOU alignment.`);
+        options.set('OPT-BATT','Battery Optimization Option');
+      }
+      if (hasEV || evseKw > 0){
+        signals.push(`EV/Charger detected (${evseKw.toFixed(1)} kW charger) — eligible for EV Time‑of‑Use.`);
+        if (evseKw >= 7){ signals.push('Charger ≥ 7 kW — strong case for off‑peak EV TOU.'); }
+        options.set('RES-TOU-EV','EV Time‑of‑Use (RES‑TOU‑EV)');
+      }
+      if (hasGen){
+        signals.push('Backup generator present — typically no rate benefit; verify standby charges if applicable.');
+        options.set('CHECK-STANDBY','Check Standby Charge Applicability');
+      }
+      if (/TOU/i.test(svc.currentRate) && evseKw===0 && pvKw===0){
+        signals.push('On TOU without EV/PV — review if flat rate is more economical given usage profile.');
+        options.set('RES-1','Standard Residential (Flat)');
+      }
+      if (svc.demandKw >= 10){
+        signals.push(`Peak demand ${svc.demandKw} kW — risk of demand charges on certain tariffs.`);
+        options.set('RES-TOU-D','Residential TOU with demand (evaluate)');
+      }
+
+      return { signals, options: Array.from(options.entries()).map(([k,v])=>({code:k,label:v})) };
+    }
+
+    function renderRateLogic(){
+      const {signals, options} = computeRateLogic(equipmentData, serviceData);
+      const ul = document.getElementById('rateSignals');
+      ul.innerHTML = signals.map(s=>`<li>${s}</li>`).join('') || '<li>No special conditions detected.</li>';
+      const chips = document.getElementById('rateChips');
+      chips.innerHTML = options.map(o=>`<span class="chip info" title="${o.code}">${o.label}</span>`).join('');
+    }
+
+    const tbody = document.querySelector('#equipmentTable tbody');
+    function renderRows(rows){
+      tbody.innerHTML = rows.map(r => `
+        <tr>
+          <td>${r.type}</td>
+          <td><strong>${r.make}</strong> <span class="subtle">${r.model||''}</span></td>
+          <td>${fmtCapacity(r)}</td>
+          <td>${statusChip(r.status)}</td>
+          <td>${r.installDate||'—'}</td>
+          <td>${r.serial || r.vin || '—'}</td>
+          <td>${r.interconnectionId || '—'}</td>
+          <td class="right"><button class="btn btn-ghost" onclick='openDetails(${JSON.stringify(r).replace(/'/g, "&#39;")})'>Details</button></td>
+        </tr>`).join('');
+    }
+
+    // Initial
+    refreshSummary();
+    renderRows(equipmentData);
+    renderRateLogic();
+
+    // Filters
+    const typeFilter = document.getElementById('typeFilter');
+    const statusFilter = document.getElementById('statusFilter');
+    const searchInput = document.getElementById('searchInput');
+
+    function applyFilters(){
+      const t = typeFilter.value;
+      const s = statusFilter.value;
+      const q = (searchInput.value||'').toLowerCase().trim();
+      const out = equipmentData.filter(r =>
+        (t==='all' || r.type===t) &&
+        (s==='all' || r.status===s) &&
+        (!q || [r.type, r.make, r.model, r.serial, r.vin, r.interconnectionId].filter(Boolean).join(' ').toLowerCase().includes(q))
+      );
+      renderRows(out);
+    }
+    typeFilter.addEventListener('change', applyFilters);
+    statusFilter.addEventListener('change', applyFilters);
+    searchInput.addEventListener('input', applyFilters);
+    document.getElementById('resetFilters').addEventListener('click', () => { typeFilter.value='all'; statusFilter.value='all'; searchInput.value=''; applyFilters(); });
+
+    // Details dialog
+    function labeled(label, value){ return `<div class="subtle">${label}: <b style="color:var(--text)">${value ?? '—'}</b></div>`; }
+    function equipmentRateImpact(row){
+      const facts = [];
+      if (row.type==='EV Charger'){ facts.push('EVSE present — qualifies for EV TOU (subject to program rules).'); if ((row.chargerKW||0) >= 7) facts.push('Charger ≥ 7 kW — stronger TOU savings off‑peak.'); }
+      if (row.type==='EV'){ facts.push('EV present — EV TOU may reduce off‑peak charging cost.'); }
+      if (row.type==='Solar PV'){ facts.push('Solar PV — eligible for Net Metering/DER rider; export credits depend on tariff.'); if ((row.capacityKW||0) >= 10) facts.push('PV ≥ 10 kW — may be classified as Large DG.'); }
+      if (row.type==='Battery Storage'){ facts.push('Battery — may qualify for optimization/bill management options.'); }
+      if (row.generatorKW){ facts.push('Backup generator — typically no rate benefit; check standby fees.'); }
+      return facts;
+    }
+
+    window.openDetails = function(row){
+      const dlg = document.getElementById('detailsDialog');
+      document.getElementById('modalTitle').textContent = `${row.type} • ${row.make} ${row.model||''}`;
+      const rateFacts = equipmentRateImpact(row);
+      const html = `
+        <div class="grid">
+          <div>
+            ${labeled('Type', row.type)}
+            ${labeled('Make', row.make)}
+            ${labeled('Model', row.model)}
+            ${row.capacityKW ? labeled('PV Capacity (kW)', row.capacityKW) : ''}
+            ${row.capacityKWh ? labeled('Battery (kWh)', row.capacityKWh) : ''}
+            ${row.chargerKW ? labeled('Charger (kW)', row.chargerKW) : ''}
+            ${row.generatorKW ? labeled('Generator (kW)', row.generatorKW) : ''}
+            ${labeled('Status', row.status)}
+            ${labeled('Installed', row.installDate)}
+            ${labeled('Serial / VIN', row.serial || row.vin)}
+            ${labeled('Interconnection ID', row.interconnectionId)}
+          </div>
+          <div>
+            ${row.inverterMake ? labeled('Inverter Make', row.inverterMake) : ''}
+            ${row.inverterModel ? labeled('Inverter Model', row.inverterModel) : ''}
+            ${row.rapidShutdown !== undefined ? labeled('Rapid Shutdown', row.rapidShutdown ? 'Yes' : 'No') : ''}
+            ${row.roofPlane ? labeled('Roof Plane', row.roofPlane) : ''}
+            ${row.backupGateway ? labeled('Backup Gateway', row.backupGateway) : ''}
+            ${row.circuitBreakerA ? labeled('Breaker (A)', row.circuitBreakerA) : ''}
+            ${row.transferSwitch ? labeled('Transfer Switch', row.transferSwitch) : ''}
+            ${row.owner ? labeled('Owner', row.owner) : ''}
+          </div>
+        </div>
+        <div style="margin-top:0.75rem;">
+          <strong>Rate impact</strong>
+          <ul class="subtle">${ rateFacts.length ? rateFacts.map(f=>`<li>${f}</li>`).join('') : '<li>No material impact detected.</li>' }</ul>
+        </div>
+        <div class="toolbar" style="margin-top:0.75rem;">
+          <a class="btn btn-ghost" href="${(row.documents && row.documents.interconnection) || '#'}" target="_blank">Interconnection Agreement</a>
+          <a class="btn btn-ghost" href="${(row.documents && row.documents.singleLine) || '#'}" target="_blank">Single‑Line Diagram</a>
+          <a class="btn btn-ghost" href="${(row.documents && row.documents.siteMap) || '#'}" target="_blank">Site Map</a>
+        </div>`;
+      document.getElementById('modalContent').innerHTML = html;
+      dlg.showModal();
+    }
+
+    // Export & Print
+    document.getElementById('exportCsvBtn').addEventListener('click', () => {
+      const headers = ['Type','Make','Model','Capacity','Status','Installed','Serial/VIN','Interconnection ID'];
+      const rows = equipmentData.map(r => [
+        r.type,
+        r.make,
+        r.model||'',
+        (function(){
+          if (r.type==='Solar PV') return (r.capacityKW||'')+' kW';
+          if (r.type==='Battery Storage') return (r.capacityKWh||'')+' kWh';
+          if (r.type==='EV Charger') return (r.chargerKW||'')+' kW';
+          if (r.type==='EV') return (r.batteryKWh||'')+' kWh';
+          return r.generatorKW? r.generatorKW+' kW' : '';
+        })(),
+        r.status,
+        r.installDate||'',
+        r.serial||r.vin||'',
+        r.interconnectionId||''
+      ]);
+      const csv = [headers, ...rows].map(r => r.map(v => '"'+String(v).replaceAll('"','""')+'"').join(',')).join('\n');
+      const blob = new Blob([csv], { type: 'text/csv;charset=utf-8;' });
+      const url = URL.createObjectURL(blob);
+      const a = document.createElement('a'); a.href = url; a.download = 'der_equipment.csv'; a.click(); URL.revokeObjectURL(url);
+    });
+    document.getElementById('printBtn').addEventListener('click', () => window.print());
+
+    // Docs open from summary
+    document.getElementById('viewDocsBtn').addEventListener('click', () => {
+      const pv = equipmentData.find(x => x.type==='Solar PV');
+      if (pv) openDetails(pv); else alert('No PV equipment found.');
+    });
+  </script>
+</body>
+</html>
+
