@@ -236,7 +236,7 @@
       const slots=[];
       for(const [wStart,wEnd] of windows){
         const s = Math.max(start, wStart); const e = Math.min(end, wEnd);
-        for(let h=s; h+durH<=e; h+=0.5){
+        for(let h=s; h+durH<=e; h+=2){
           if(!isBusy(res, dayIdx, h, h+durH)) slots.push({ from:h, to:h+durH });
         }
       }
