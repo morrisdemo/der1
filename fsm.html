@@ -1,0 +1,430 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="utf-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1" />
+  <title>Field Work Scheduling — Fiori‑style Preview</title>
+  <style>
+    :root{
+      --bg:#f7f7f7; --tile:#fff; --text:#32363a; --muted:#6a6d70; --border:#e0e0e0;
+      --shadow:0 0 0.125rem rgba(0,0,0,.08); --primary:#0a6ed1; --primary-2:#0854a0;
+      --success:#107e3e; --warn:#e9730c; --error:#bb0000; --info:#0a6ed1;
+      --success-bg:#edf7ed; --warn-bg:#fff4e5; --error-bg:#fdeaea; --info-bg:#e5f3ff;
+      --focus:#0a6ed1;
+    }
+    *{box-sizing:border-box}
+    body{margin:0;background:var(--bg);color:var(--text);font-family:system-ui,-apple-system,"Segoe UI",Roboto,Arial,Helvetica,sans-serif}
+    .page{max-width:1200px;margin:0 auto;padding:1rem;display:grid;gap:1rem;grid-template-columns:1fr}
+    @media(min-width:1100px){.page{grid-template-columns:1.2fr 1fr}}
+    .card{background:var(--tile);border:1px solid var(--border);border-radius:8px;box-shadow:var(--shadow);padding:1rem}
+    .title{font-weight:700}
+    .subtle{color:var(--muted)}
+    .toolbar{display:flex;gap:.5rem;align-items:center;flex-wrap:wrap}
+    .toolbar .spacer{flex:1}
+    .btn{appearance:none;border:none;border-radius:6px;padding:.45rem .75rem;font-weight:600;cursor:pointer}
+    .btn:focus{outline:2px solid var(--focus);outline-offset:2px}
+    .btn-primary{background:var(--primary);color:#fff}
+    .btn-primary:hover{background:var(--primary-2)}
+    .btn-ghost{background:transparent;color:var(--info);border:1px solid #cfe5ff}
+    .select,.input{padding:.4rem .5rem;border:1px solid #d1d5db;border-radius:6px;background:#fff}
+    .grid2{display:grid;grid-template-columns:1fr 1fr;gap:.75rem}
+    @media(max-width:720px){.grid2{grid-template-columns:1fr}}
+    .kpi{background:#f9fafb;border:1px solid #ececec;border-radius:8px;padding:.75rem}
+    .kpi .num{font-weight:800}
+    .chip{display:inline-block;border-radius:999px;padding:.1rem .5rem;font-size:.75rem;font-weight:700}
+    .chip.info{background:var(--info-bg);color:var(--info)}
+    .chip.ok{background:var(--success-bg);color:var(--success)}
+    .chip.warn{background:var(--warn-bg);color:var(--warn)}
+    .chip.err{background:var(--error-bg);color:var(--error)}
+    .msg{border-left:4px solid var(--info);background:#f5f7f9;padding:.6rem .75rem;border-radius:6px;display:flex;align-items:center;justify-content:space-between;gap:.5rem}
+    table{width:100%;border-collapse:collapse}
+    thead th{text-align:left;font-size:.8rem;color:var(--muted);border-bottom:1px solid #e5e7eb;padding:.5rem}
+    tbody td{padding:.55rem .5rem;border-bottom:1px solid #f0f0f0;vertical-align:top}
+    tbody tr:hover{background:#fafbfd}
+    .right{text-align:right}
+    .section-h{margin:.25rem 0 .5rem 0}
+    .pill{display:inline-block;padding:.1rem .5rem;border-radius:999px;border:1px solid #d9e7fb;background:#f3f8ff;color:#0a6ed1;font-size:.75rem;font-weight:700}
+    .pill.on{background:var(--success-bg);color:var(--success);border-color:#cfe8d8}
+    .pill.off{background:var(--warn-bg);color:var(--warn);border-color:#f8d7b6}
+    dialog{border:none;border-radius:8px;padding:0;box-shadow:0 10px 30px rgba(0,0,0,.2)}
+    .dlg-hd{padding:.9rem 1rem;border-bottom:1px solid #eee;display:flex;justify-content:space-between;align-items:center}
+    .dlg-ct{padding:1rem}
+    .slot{border:1px solid #e5e5e5;border-radius:8px;padding:.6rem .75rem;display:flex;gap:.5rem;align-items:center;justify-content:space-between}
+    .slot:hover{background:#fafbfd}
+    .statusbar{display:flex;gap:.4rem;flex-wrap:wrap}
+    .statusbar .step{display:flex;gap:.35rem;align-items:center}
+    .dot{width:8px;height:8px;border-radius:50%;background:#cfd8e0}
+    .dot.on{background:var(--primary)}
+    .small{font-size:.85rem}
+    .mt8{margin-top:.5rem}
+  </style>
+</head>
+<body>
+  <div class="page">
+
+    <!-- LEFT: Create Field Work / Find Slots -->
+    <section class="card">
+      <div class="toolbar">
+        <div class="title">Create Field Work</div>
+        <div class="spacer"></div>
+        <button id="btnCreateOrder" class="btn btn-primary">Create Order</button>
+      </div>
+
+      <div class="grid2 mt8">
+        <div>
+          <label class="small subtle">Service</label>
+          <select id="svcType" class="select" aria-label="Service type">
+            <option value="Inspection">Inspection</option>
+            <option value="Install-PV">Install: Solar PV</option>
+            <option value="Install-Battery">Install: Battery</option>
+            <option value="Install-EVSE">Install: EV Charger</option>
+          </select>
+        </div>
+        <div>
+          <label class="small subtle">Duration</label>
+          <select id="svcDuration" class="select">
+            <option value="60">1.0 hr</option>
+            <option value="90">1.5 hr</option>
+            <option value="120" selected>2.0 hr</option>
+            <option value="180">3.0 hr</option>
+          </select>
+        </div>
+        <div>
+          <label class="small subtle">Preferred Date</label>
+          <input id="svcDate" class="input" type="date" />
+        </div>
+        <div>
+          <label class="small subtle">Time of Day</label>
+          <select id="svcTod" class="select">
+            <option value="any">Any</option>
+            <option value="morning">Morning (8–12)</option>
+            <option value="afternoon">Afternoon (12–4)</option>
+            <option value="evening">Evening (4–6)</option>
+          </select>
+        </div>
+        <div>
+          <label class="small subtle">Include Contractors</label><br>
+          <span id="pillContractors" class="pill on" role="switch" aria-checked="true" tabindex="0">On</span>
+        </div>
+        <div>
+          <label class="small subtle">Required Skill</label>
+          <select id="svcSkill" class="select">
+            <option value="Inspection">Inspection</option>
+            <option value="SolarInstall">SolarInstall</option>
+            <option value="BatteryInstall">BatteryInstall</option>
+            <option value="EVSEInstall">EVSEInstall</option>
+          </select>
+        </div>
+      </div>
+
+      <div class="msg mt8">
+        <div>Find an available timeslot and assign a technician. Data below simulates **FSM** resources & calendars.</div>
+        <button id="btnFindSlots" class="btn btn-ghost">Find Slots</button>
+      </div>
+
+      <h4 class="section-h">Available Slots</h4>
+      <div id="slotsWrap" style="display:grid;gap:.5rem"></div>
+
+      <h4 class="section-h">Technician Roster</h4>
+      <div style="overflow:auto">
+        <table aria-label="Technicians">
+          <thead>
+            <tr>
+              <th>Name</th><th>Type</th><th>Skills</th><th>Shift</th><th>Region</th><th>Next Busy</th><th class="right">Score</th>
+            </tr>
+          </thead>
+          <tbody id="techTbody"></tbody>
+        </table>
+      </div>
+    </section>
+
+    <!-- RIGHT: Order Summary & Status -->
+    <section class="card">
+      <div class="title">Order Summary</div>
+      <div id="orderCard" class="subtle">No order yet. Select a slot to create one.</div>
+
+      <h4 class="section-h">Status</h4>
+      <div id="statusBar" class="statusbar subtle">
+        <!-- steps injected -->
+      </div>
+      <div class="toolbar mt8">
+        <button class="btn btn-ghost" id="btnAdvance">Advance Status</button>
+        <button class="btn btn-ghost" id="btnReset">Reset</button>
+        <div class="spacer"></div>
+        <button class="btn btn-primary" id="btnExport">Export JSON</button>
+      </div>
+
+      <h4 class="section-h">Events</h4>
+      <ul id="eventLog" class="subtle" style="padding-left:1rem"></ul>
+    </section>
+  </div>
+
+  <!-- Dialog: choose technician for a slot -->
+  <dialog id="dlgTech">
+    <div class="dlg-hd">
+      <strong>Select Technician</strong>
+      <button class="btn btn-ghost" onclick="document.getElementById('dlgTech').close()">Close</button>
+    </div>
+    <div class="dlg-ct" id="dlgTechBody"></div>
+  </dialog>
+
+  <script>
+    // ---------- Demo Data (simulate FSM) ----------
+    const resources = [
+      { id:'T-101', name:'Sam Carter', contractor:false, skills:['Inspection','SolarInstall'], region:'North', shift:{ start:8, end:17 }, home:{lat:40.02,lng:-105.28}, busy:[{d:1, from:10, to:12}] },
+      { id:'T-102', name:'Mina Patel', contractor:false, skills:['Inspection','BatteryInstall','EVSEInstall'], region:'Central', shift:{ start:8, end:18 }, home:{lat:40.00,lng:-105.20}, busy:[{d:2, from:8, to:10},{d:2, from:14, to:16}] },
+      { id:'T-201', name:'ACME Solar Crew', contractor:true, skills:['SolarInstall'], region:'Central', shift:{ start:7, end:17 }, home:{lat:39.95,lng:-105.10}, busy:[{d:0, from:12, to:16}] },
+      { id:'T-202', name:'VoltWorks EV', contractor:true, skills:['EVSEInstall','Inspection'], region:'South', shift:{ start:9, end:17 }, home:{lat:39.90,lng:-105.00}, busy:[{d:3, from:9, to:12}] }
+    ];
+
+    // today baseline
+    const today = new Date(); today.setHours(0,0,0,0);
+
+    // ---------- Helpers ----------
+    function fmtDate(d){ return d.toLocaleDateString(undefined,{weekday:'short', month:'short', day:'numeric'}) }
+    function pad(n){ return String(n).padStart(2,'0') }
+    function fmtTime(h){ const ampm = h>=12? 'PM':'AM'; const hr = ((h+11)%12+1); return hr+':00 '+ampm }
+    function addDays(base, days){ const d=new Date(base); d.setDate(d.getDate()+days); return d }
+
+    function haversine(lat1,lon1,lat2,lon2){
+      if([lat1,lon1,lat2,lon2].some(v=>v==null)) return null;
+      const toRad = v=>v*Math.PI/180; const R=6371; // km
+      const dLat=toRad(lat2-lat1), dLon=toRad(lon2-lon1);
+      const a=Math.sin(dLat/2)**2+Math.cos(toRad(lat1))*Math.cos(toRad(lat2))*Math.sin(dLon/2)**2;
+      return R*2*Math.atan2(Math.sqrt(a),Math.sqrt(1-a));
+    }
+
+    // ---------- Roster table ----------
+    function nextBusy(res){ if(!res.busy||!res.busy.length) return '-'; const e=res.busy[0]; const day=fmtDate(addDays(today,e.d)); return day+' '+fmtTime(e.from)+'–'+fmtTime(e.to) }
+    function scoreResource(res, skill, includeContractors){
+      let s = 0;
+      if(res.skills.includes(skill)) s+=50; else s-=20;
+      if(res.contractor && !includeContractors) s -= 100;
+      // add mild preference for non-contractors
+      if(!res.contractor) s+=5;
+      return s;
+    }
+    function renderRoster(){
+      const includeContractors = pillContractors.getAttribute('aria-checked')==='true';
+      const skill = svcSkill.value;
+      techTbody.innerHTML = resources
+        .map(r=>({ r, score: scoreResource(r, skill, includeContractors) }))
+        .sort((a,b)=>b.score-a.score)
+        .map(({r,score})=>`<tr>
+          <td><strong>${r.name}</strong></td>
+          <td>${r.contractor?'<span class="chip warn">Contractor</span>':'<span class="chip ok">Employee</span>'}</td>
+          <td>${r.skills.join(', ')}</td>
+          <td>${fmtTime(r.shift.start)}–${fmtTime(r.shift.end)}</td>
+          <td>${r.region}</td>
+          <td>${nextBusy(r)}</td>
+          <td class="right">${score}</td>
+        </tr>`).join('');
+    }
+
+    // ---------- Slot generation ----------
+    function isBusy(res, dayIdx, from, to){
+      return (res.busy||[]).some(b => b.d===dayIdx && Math.max(b.from, from) < Math.min(b.to, to));
+    }
+    function slotsForResource(res, dayIdx, durMins, tod){
+      const durH = durMins/60; const start = res.shift.start; const end = res.shift.end;
+      const windows = [];
+      // time-of-day filter windows
+      if(tod==='morning') windows.push([8,12]);
+      else if(tod==='afternoon') windows.push([12,16]);
+      else if(tod==='evening') windows.push([16,18]);
+      else windows.push([start, end]);
+      const slots=[];
+      for(const [wStart,wEnd] of windows){
+        const s = Math.max(start, wStart); const e = Math.min(end, wEnd);
+        for(let h=s; h+durH<=e; h+=0.5){
+          if(!isBusy(res, dayIdx, h, h+durH)) slots.push({ from:h, to:h+durH });
+        }
+      }
+      return slots;
+    }
+
+    function findSlots(dateBase, skill, durMins, includeContractors, tod){
+      const results = []; // {date, from, to, list:[res]}
+      for(let d=0; d<7; d++){
+        const date = addDays(dateBase, d);
+        // build a map by time window
+        const map = new Map();
+        for(const r of resources){
+          if(r.contractor && !includeContractors) continue;
+          if(!r.skills.includes(skill)) continue;
+          for(const s of slotsForResource(r, d, durMins, tod)){
+            const key = s.from+'-'+s.to;
+            if(!map.has(key)) map.set(key, { date, from:s.from, to:s.to, list:[] });
+            map.get(key).list.push(r);
+          }
+        }
+        for(const val of map.values()) results.push(val);
+      }
+      // sort by date then start time, most availability first
+      return results.sort((a,b)=> a.date-b.date || a.from-b.from || b.list.length-a.list.length);
+    }
+
+    function renderSlots(){
+      slotsWrap.innerHTML = slots.map(s=>{
+        const dateTxt = fmtDate(s.date);
+        return `<div class="slot">
+          <div>
+            <div><strong>${dateTxt}</strong> • ${fmtTime(s.from)}–${fmtTime(s.to)}</div>
+            <div class="subtle small">${s.list.length} technician(s) available</div>
+          </div>
+          <div>
+            <button class="btn btn-ghost" onclick='openTechPicker(${JSON.stringify({d:s.date.toISOString(), from:s.from, to:s.to}).replace(/"/g,"&quot;")})'>Select</button>
+          </div>
+        </div>`
+      }).join('');
+    }
+
+    // ---------- Tech picker dialog ----------
+    function openTechPicker(slot){
+      const d = new Date(slot.d);
+      const eligible = resources.filter(r=> r.skills.includes(svcSkill.value) && !(r.contractor && pillContractors.getAttribute('aria-checked')!=='true') && !isBusy(r, Math.round((d - today)/86400000), slot.from, slot.to) );
+      dlgTechBody.innerHTML = eligible.map(r=>{
+        const score = scoreResource(r, svcSkill.value, pillContractors.getAttribute('aria-checked')==='true');
+        return `<div class="slot" style="margin-bottom:.5rem">
+          <div>
+            <div><strong>${r.name}</strong> ${r.contractor?'<span class="chip warn">Contractor</span>':'<span class="chip ok">Employee</span>'}</div>
+            <div class="subtle small">Skills: ${r.skills.join(', ')} • Shift ${fmtTime(r.shift.start)}–${fmtTime(r.shift.end)}</div>
+          </div>
+          <div>
+            <button class="btn btn-primary" onclick='createOrder(${JSON.stringify({rid:r.id, d:slot.d, from:slot.from, to:slot.to}).replace(/"/g,"&quot;")})'>Assign</button>
+          </div>
+        </div>`
+      }).join('') || '<div class="subtle">No eligible technicians for this slot.</div>';
+      document.getElementById('dlgTech').showModal();
+    }
+
+    // ---------- Order model & Status ----------
+    const STATUS_STEPS = ['Created','Scheduled','Dispatched','En Route','On Site','Completed'];
+    let currentOrder = null; let statusIdx = -1;
+
+    function renderStatus(){
+      statusBar.innerHTML = STATUS_STEPS.map((s,i)=>`<span class="step"><span class="dot ${i<=statusIdx?'on':''}"></span><span class="small ${i<=statusIdx?'':'subtle'}">${s}</span></span>`).join('');
+    }
+
+    function logEvent(text){
+      const li = document.createElement('li');
+      const ts = new Date().toLocaleString();
+      li.textContent = ts+': '+text; eventLog.prepend(li);
+    }
+
+    function renderOrder(){
+      if(!currentOrder){ orderCard.textContent = 'No order yet. Select a slot to create one.'; renderStatus(); return; }
+      const r = resources.find(x=>x.id===currentOrder.resourceId);
+      orderCard.innerHTML = `
+        <div class="grid2">
+          <div>
+            <div><strong>Order:</strong> ${currentOrder.id}</div>
+            <div class="subtle small">Type: ${currentOrder.type} • Duration: ${currentOrder.duration} mins</div>
+            <div class="subtle small">Window: ${fmtDate(new Date(currentOrder.date))} ${fmtTime(currentOrder.from)}–${fmtTime(currentOrder.to)}</div>
+            <div class="subtle small">Status: <span class="chip info">${STATUS_STEPS[statusIdx]||'—'}</span></div>
+          </div>
+          <div>
+            <div><strong>Technician:</strong> ${r? r.name:'—'} ${r&&r.contractor?'<span class="chip warn">Contractor</span>':''}</div>
+            <div class="subtle small">Region: ${r?r.region:'—'} • Skills: ${r?r.skills.join(', '):'—'}</div>
+          </div>
+        </div>`;
+      renderStatus();
+    }
+
+    function newOrderId(){
+      const d = new Date();
+      const y=d.getFullYear(); const m=pad(d.getMonth()+1); const day=pad(d.getDate());
+      return `WO-${y}${m}${day}-${Math.floor(1000+Math.random()*9000)}`;
+    }
+
+    function createOrder(payload){
+      const r = resources.find(x=>x.id===payload.rid);
+      currentOrder = {
+        id: newOrderId(),
+        type: svcType.value,
+        skill: svcSkill.value,
+        duration: Number(svcDuration.value),
+        date: payload.d,
+        from: payload.from,
+        to: payload.to,
+        resourceId: r.id,
+        contractor: r.contractor
+      };
+      statusIdx = 0;
+      document.getElementById('dlgTech').close();
+      renderOrder();
+      logEvent(`Order ${currentOrder.id} created and scheduled with ${r.name} (${fmtTime(payload.from)}–${fmtTime(payload.to)}).`);
+    }
+
+    // ---------- UI wiring ----------
+    const svcType = document.getElementById('svcType');
+    const svcSkill = document.getElementById('svcSkill');
+    const svcDuration = document.getElementById('svcDuration');
+    const svcDate = document.getElementById('svcDate');
+    const svcTod = document.getElementById('svcTod');
+    const pillContractors = document.getElementById('pillContractors');
+    const techTbody = document.getElementById('techTbody');
+    const slotsWrap = document.getElementById('slotsWrap');
+    const orderCard = document.getElementById('orderCard');
+    const statusBar = document.getElementById('statusBar');
+    const eventLog = document.getElementById('eventLog');
+
+    // default date = today + 1
+    const def = new Date(today); def.setDate(def.getDate()+1); svcDate.valueAsDate = def;
+
+    pillContractors.addEventListener('click',()=>{
+      const on = pillContractors.getAttribute('aria-checked')==='true';
+      pillContractors.setAttribute('aria-checked', String(!on));
+      pillContractors.classList.toggle('on', !on);
+      pillContractors.classList.toggle('off', on);
+      renderRoster();
+    });
+    pillContractors.addEventListener('keydown', (e)=>{ if(e.key===' '||e.key==='Enter'){ e.preventDefault(); pillContractors.click(); }});
+
+    document.getElementById('btnFindSlots').addEventListener('click', ()=>{
+      const base = svcDate.valueAsDate || today;
+      const include = pillContractors.getAttribute('aria-checked')==='true';
+      slots = findSlots(base, svcSkill.value, Number(svcDuration.value), include, svcTod.value);
+      renderSlots();
+      logEvent('Searched for slots: '+fmtDate(base)+' • '+svcSkill.value+' • '+svcDuration.value+' mins');
+    });
+
+    document.getElementById('btnCreateOrder').addEventListener('click', ()=>{
+      if(!slots || !slots.length){ alert('Find a slot first.'); return; }
+      // open first slot picker by default
+      openTechPicker({ d: slots[0].date.toISOString(), from: slots[0].from, to: slots[0].to });
+    });
+
+    document.getElementById('btnAdvance').addEventListener('click', ()=>{
+      if(!currentOrder){ alert('No order.'); return; }
+      if(statusIdx < STATUS_STEPS.length-1){ statusIdx++; renderOrder(); logEvent('Status → '+STATUS_STEPS[statusIdx]); }
+      else alert('Order already Completed.');
+    });
+
+    document.getElementById('btnReset').addEventListener('click', ()=>{
+      currentOrder = null; statusIdx = -1; renderOrder(); logEvent('Reset context.');
+    });
+
+    document.getElementById('btnExport').addEventListener('click', ()=>{
+      if(!currentOrder){ alert('No order.'); return; }
+      const payload = {
+        orderId: currentOrder.id,
+        type: currentOrder.type,
+        requiredSkill: currentOrder.skill,
+        scheduledWindow: { date: currentOrder.date, from: currentOrder.from, to: currentOrder.to },
+        resource: resources.find(r=>r.id===currentOrder.resourceId),
+        durationMins: currentOrder.duration,
+        status: STATUS_STEPS[statusIdx]
+      };
+      const blob = new Blob([JSON.stringify(payload,null,2)], {type:'application/json'});
+      const url = URL.createObjectURL(blob);
+      const a = document.createElement('a'); a.href=url; a.download=`${currentOrder.id}.json`; a.click(); URL.revokeObjectURL(url);
+    });
+
+    // init
+    let slots = [];
+    renderRoster();
+    renderStatus();
+  </script>
+</body>
+</html>
