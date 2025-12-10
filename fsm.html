@@ -74,12 +74,11 @@
         <div>
           <label class="small subtle">Service</label>
           <select id="svcType" class="select" aria-label="Service type">
-            <option value="Inspection">Inspection / Investigation</option>
-            <option value="MeterSet">Install: Meter</option>
-            <option value="Inspection">Remove: Meter</option>
+            <option value="Inspection">Inspection</option>
+            <option value="Meter">Meter Set / Install</option>
             <option value="Install-PV">Install: Solar PV</option>
-            <option value="Install-Battery">Install: Battery Storage</option>
-            <option value="Install-EVSE">Install: EV Charger(s)</option>
+            <option value="Install-Battery">Install: Battery</option>
+            <option value="Install-EVSE">Install: EV Charger</option>
           </select>
         </div>
         <div>
@@ -153,7 +152,7 @@
         <button class="btn btn-ghost" id="btnAdvance">Advance Status</button>
         <button class="btn btn-ghost" id="btnReset">Reset</button>
         <div class="spacer"></div>
-       <!-- <button class="btn btn-primary" id="btnExport">Export JSON</button>
+        <button class="btn btn-primary" id="btnExport">Export JSON</button>
       </div>
 
       <h4 class="section-h">Events</h4>
@@ -238,6 +237,7 @@
       const slots=[];
       for(const [wStart,wEnd] of windows){
         const s = Math.max(start, wStart); const e = Math.min(end, wEnd);
+        for(let h=s; h+durH<=e; h+=2){
         for(let h=s; h+durH<=e; h+=4){
           if(!isBusy(res, dayIdx, h, h+durH)) slots.push({ from:h, to:h+durH });
         }
